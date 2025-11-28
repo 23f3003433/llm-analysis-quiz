@@ -1,0 +1,25 @@
+fastapi
+uvicorn[standard]
+
+# Playwright (async)
+playwright
+
+# HTTP client for async submit
+httpx
+
+# Data handling
+pandas
+openpyxl
+
+# PDF parsing
+pdfplumber
+
+# HTML parsing
+beautifulsoup4
+
+# Parsing & validation
+pydantic
+
+# Support utilities
+python-multipart
+requests
