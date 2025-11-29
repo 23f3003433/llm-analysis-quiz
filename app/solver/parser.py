@@ -1,61 +1,73 @@
-import re
-import pandas as pd
-from bs4 import BeautifulSoup
-from io import StringIO
-import hashlib
+# app/solver/parser.py
 
-def compute_email_cutoff(email: str) -> int:
-    h = hashlib.sha1(email.encode()).hexdigest()
-    value = int(h[:8], 16)
-    return value % 50000
+from bs4 import BeautifulSoup
+from urllib.parse import urljoin
+
 
 def extract_submit_url(html: str) -> str | None:
-    if not html:
-        return None
-
+    """
+    Extracts submit URL from the quiz HTML.
+    Often appears inside the page as:
+      Post your answer to <span class="origin"></span>/submit
+    or as an <a href=...> link.
+    """
     soup = BeautifulSoup(html, "html.parser")
 
-    # JS submit_url = "..."
-    scripts = soup.find_all("script")
-    for s in scripts:
-        if s.string:
-            m = re.search(r'submit_url\s*=\s*"([^"]+)"', s.string)
-            if m:
-                return m.group(1)
+    # 1. Look for explicit URLs inside <a> tags
+    for a in soup.find_all("a"):
+        href = a.get("href", "")
+        if "submit" in href:
+            return href
 
-            m = re.search(r'window\.submit_url\s*=\s*"([^"]+)"', s.string)
-            if m:
-                return m.group(1)
-
-    # <form action="...">
-    form = soup.find("form", action=True)
-    if form:
-        action = form["action"].strip()
-        if "submit" in action:
-            return action
-
-    # Audio format
-    m = re.search(r"POST to JSON to\s+(https?://\S+/submit)", html)
-    if m:
-        return m.group(1)
-
-    # Any URL containing /submit
+    # 2. Look for "submit" text inside script or embedded content
     text = soup.get_text(" ", strip=True)
-    m = re.search(r"(https?://\S+/submit\S*)", text)
-    if m:
-        return m.group(1)
-
-    # <span class="origin">
-    origin_el = soup.find(class_="origin")
-    if origin_el:
-        origin = origin_el.get_text(strip=True)
-        return origin.rstrip("/") + "/submit"
+    possible = [word for word in text.split() if "submit" in word.lower()]
+    if possible:
+        return possible[0]
 
     return None
 
 
-def extract_answer_from_audio(html: str, csv_bytes: bytes, email: str) -> int:
-    cutoff = compute_email_cutoff(email)
-    df = pd.read_csv(StringIO(csv_bytes.decode()), header=0)
-    col = df.iloc[:, 0]
-    return int((col > cutoff).sum())
+def extract_input_links(html: str, base_url: str) -> list:
+    """
+    Extract all downloadable file URLs:
+    - CSV
+    - PDF
+    - JSON
+    - Images
+    - Anything with <a href="...">
+
+    The chain/LLM will filter them out and decide which to load.
+    """
+    soup = BeautifulSoup(html, "html.parser")
+
+    links = []
+    for a in soup.find_all("a"):
+        href = a.get("href")
+        if not href:
+            continue
+
+        full_url = urljoin(base_url, href)
+        links.append(full_url)
+
+    return links
+
+
+def parse_question_text(html: str) -> str:
+    """
+    Extract visible question text from HTML.
+
+    Used only as context for the LLM.
+    """
+    soup = BeautifulSoup(html, "html.parser")
+
+    # Priority: <p>, <div>, <h1>.. <h6>
+    parts = []
+
+    for tag in soup.find_all(["p", "div", "span", "h1","h2","h3","h4","h5","h6"]):
+        txt = tag.get_text(" ", strip=True)
+        if txt:
+            parts.append(txt)
+
+    # Return a joined block of readable text
+    return "\n".join(parts)

@@ -1,29 +1,34 @@
-# Use lightweight Python image
-FROM python:3.10-slim
+# Dockerfile
+FROM python:3.11-slim
 
-# Install system dependencies for Playwright
+# Install system dependencies
 RUN apt-get update && apt-get install -y \
-    wget ffmpeg libnss3 libatk1.0-0 libatk-bridge2.0-0 libcups2 \
-    libxkbcommon0 libxdamage1 libxrandr2 libasound2 libpangocairo-1.0-0 \
-    libxcomposite1 libxshmfence1 libgbm1 libpango-1.0-0 libgtk-3-0 \
-    && apt-get clean
+    python3-dev \
+    build-essential \
+    libsndfile1 \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
 
-# Install Playwright + Browsers
+# Install Playwright dependencies
+RUN apt-get update && apt-get install -y wget gnupg \
+    && rm -rf /var/lib/apt/lists/*
 RUN pip install playwright
-RUN playwright install --with-deps
+RUN playwright install --with-deps chromium
 
-# Copy requirement file
-COPY requirements.txt /app/requirements.txt
+# Create app directory
+WORKDIR /code
 
-# Install requirements
-RUN pip install -r /app/requirements.txt
+# Copy requirements first
+COPY requirements.txt .
 
-# Copy project files
-COPY . /app
-WORKDIR /app
+# Install Python dependencies
+RUN pip install --no-cache-dir -r requirements.txt
 
-# Expose HuggingFace default port
+# Copy application
+COPY . .
+
+# Expose port
 EXPOSE 7860
 
-# Start FastAPI app
+# Run FastAPI server
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "7860"]

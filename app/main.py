@@ -3,7 +3,11 @@ from pydantic import BaseModel
 import json
 
 from .config import STUDENT_EMAIL, STUDENT_SECRET
-from .solver.chain import solve_quiz_chain, QuizRequest as ChainQuizRequest
+from .solver.chain import solve_quiz_chain
+from .solver.models import QuizRequest
+from dotenv import load_dotenv
+load_dotenv()
+
 
 app = FastAPI()
 
@@ -32,7 +36,7 @@ async def handle_quiz(request: Request):
         raise HTTPException(status_code=403, detail="Invalid email")
 
     # Build chain request
-    chain_req = ChainQuizRequest(
+    chain_req = QuizRequest(
         email=quiz_req.email,
         secret=quiz_req.secret,
         url=quiz_req.url,

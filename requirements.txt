@@ -1,25 +1,15 @@
 fastapi
 uvicorn[standard]
-
-# Playwright (async)
-playwright
-
-# HTTP client for async submit
-httpx
-
-# Data handling
-pandas
-openpyxl
-
-# PDF parsing
-pdfplumber
-
-# HTML parsing
-beautifulsoup4
-
-# Parsing & validation
-pydantic
-
-# Support utilities
+aiohttp
 python-multipart
+beautifulsoup4
 requests
+httpx
+pandas
+numpy
+pdfplumber
+matplotlib
+Pillow
+playwright
+openai>=1.0.0
+tqdm
